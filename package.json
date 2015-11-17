@@ -4,7 +4,7 @@
   "description": "File system operations in node native promises, with simple options and nice defaults",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "make test"
   },
   "repository": {
     "type": "git",
