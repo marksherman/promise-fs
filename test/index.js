@@ -9,11 +9,17 @@ var should      = chai.should(),
     promisefs   = require('../index'),
     readFile    = promisefs.readFile,
     writeFile   = promisefs.writeFile,
-    readdir     = promisefs.readdir;
+    readdir     = promisefs.readdir,
+    rename      = promisefs.rename,
+    system      = promisefs.system;
 
-var testdir = 'testdir';
+var random = function() {
+  return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
+};
+
+var testdir = 'testdir' + random();
 var setupTestDir = function() {
-  content = new Date().toString() + ' ' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+  content = new Date().toString() + ' ' + random();
   fs.mkdirSync(testdir);
   fs.writeFileSync(testdir + '/a', "a\n" + content + "\n");
   fs.writeFileSync(testdir + '/b', "b\n" + content + "\n");
@@ -29,9 +35,9 @@ var destroyTestDir = function(newFiles) {
   if( typeof newFiles === 'string' ){
     fs.unlinkSync(newFiles);
   }
-  fs.unlinkSync('testdir/a');
-  fs.unlinkSync('testdir/b');
-  fs.rmdir('testdir');
+  fs.unlinkSync(testdir + '/a');
+  fs.unlinkSync(testdir + '/b');
+  fs.rmdir(testdir);
 };
 
 describe('readFile', function() {
@@ -56,7 +62,7 @@ describe('readdir', function() {
 });
 
 describe('writeFile', function() {
-  var name = Math.floor(Math.random() * 99999).toString();
+  var name = random();
 
   before('setup test dir', setupTestDir);
 
@@ -84,4 +90,59 @@ describe('writeFile', function() {
   after('destroy directory with new file', function() {
     destroyTestDir(testdir + '/' + name);
   });
+});
+
+describe('rename', function() {
+  before('setup test dir', setupTestDir);
+
+  describe('execute rename', function() {
+    it('should rename a to c', function(done) {
+      var p = rename(testdir + '/' + 'a', testdir + '/' + 'c');
+      p.should.be.fulfilled.should.notify(done);
+    });
+  });
+
+  describe('check rename in listing', function() {
+    it('should now show renamed file', function() {
+      var wasread = fs.readdirSync(testdir);
+      wasread.should.include.members(['b', 'c']);
+      wasread.should.not.include.members(['a']);
+    });
+  });
+
+  after('destroy modified test dir', function() {
+    fs.unlinkSync(testdir + '/c');
+    fs.unlinkSync(testdir + '/b');
+    fs.rmdir(testdir);
+  });
+});
+
+describe('system', function() {
+  var name;
+  before('make a directory name', function() {
+    name = testdir + random();
+  });
+
+  describe('mkdir with options', function() {
+    it('should make a directory with the system call, stdout suppressed', function(done) {
+      p = system(
+        [ "mkdir", "-p", name],
+        { showStdout : false });
+      p.should.be.fulfilled.should.notify(done);
+    });
+  });
+
+  describe('check return value of stat of new dir', function() {
+    it('should return 0 from stat command', function(done) {
+      p = system(
+        [ "stat" , name ],
+        { showStdout : false });
+      p.should.eventually.have.property('exitCode', 0).should.notify(done);
+    });
+  });
+
+  after('destroy new dir', function() {
+    fs.rmdirSync(name);
+  });
+
 });
